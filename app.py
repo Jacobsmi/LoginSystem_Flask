@@ -4,14 +4,23 @@ import sys
 
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
+from flask import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import exc
 from psycopg2.errors import UniqueViolation
+from flask_cors import CORS
+from flask_bcrypt import Bcrypt
 # Load the env file
 load_dotenv()
 
 # Create the flask app
 app = Flask(__name__)
+
+# Setup CORs for app
+CORS(app)
+
+# Setup bcrypt for app
+bcrypt = Bcrypt(app)
 
 # Create a database connection
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_URL')
@@ -43,14 +52,19 @@ def create_user():
     try:
         # Get the info sent in the POST request
         user_info=request.get_json()
+        # hashed email
+        pass_hash = bcrypt.generate_password_hash(user_info['password'])
         # Create a new User object with the given info
-        new_user = User(user_info['fname'], user_info['lname'], user_info['email'])
+        new_user = User(user_info['fname'], user_info['lname'], user_info['email'], pass_hash)
         # Stage adding the new user to the database
         db.session.add(new_user)
         # Commit the staged changes
         db.session.commit()
         # If all goes well then return a success message
-        return 'success', 200
+        return jsonify({
+            'status':'success',
+            'user': new_user.id
+        }), 200
     
     # Excepts missing key errors
     except KeyError as e:
