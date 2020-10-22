@@ -34,12 +34,14 @@ class User(db.Model):
     firstname = db.Column(db.String(80), nullable=False)
     lastname = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
+    password = db.Column(db.String(300), unique=True, nullable=False)
 
     # Sets information for the new user
-    def __init__(self, fname, lname, email):
+    def __init__(self, fname, lname, email, password):
         self.firstname = fname
         self.lastname = lname
         self.email = email
+        self.password = password
 
     # Creates a list representation of the task object
     def to_list(self):
@@ -52,8 +54,8 @@ def create_user():
     try:
         # Get the info sent in the POST request
         user_info=request.get_json()
-        # hashed email
-        pass_hash = bcrypt.generate_password_hash(user_info['password'])
+        # hashed password
+        pass_hash = bcrypt.generate_password_hash(user_info['pass'])
         # Create a new User object with the given info
         new_user = User(user_info['fname'], user_info['lname'], user_info['email'], pass_hash)
         # Stage adding the new user to the database
@@ -73,18 +75,18 @@ def create_user():
         # Create an error string based on the missing field
         error = 'missing_attribute_'+error_str.translate({ord("'"): None})
         # return error string with missing field
-        return error, 200
+        return jsonify({'error': error}), 200
 
     # Excepts non-unique or invalid information errors
     except exc.IntegrityError as e:
         # If non-unique find the key that was non-unique and return
         if isinstance(e.orig, UniqueViolation):
             if 'users_email_key' in str(e.orig):
-                return 'duplicate_email', 200
+                return jsonify({'error':'duplicate_email'}), 200
             else: 
-                return 'duplicate_other', 200
+                return jsonify({'error':'duplicate_other'}), 200
     
-    return 'unknown_error', 200
+    return jsonify({'error':'unknown_error'}), 200
 
 if len(sys.argv) > 1:
     if sys.argv[1].lower() == 'migrate' or sys.argv[1].lower() == 'm':
