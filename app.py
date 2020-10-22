@@ -10,6 +10,10 @@ from sqlalchemy import exc
 from psycopg2.errors import UniqueViolation
 from flask_cors import CORS
 from flask_bcrypt import Bcrypt
+from flask_jwt_extended import (
+    JWTManager, jwt_required, create_access_token,
+    get_jwt_identity
+)
 # Load the env file
 load_dotenv()
 
@@ -27,6 +31,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_URL')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# Setup JWT manager
+app.config['JWT_SECRET_KEY'] = 'super-secret' # I will change this
+jwt = JWTManager(app)
+
 # Models for the DB
 class User(db.Model):
     __tablename__ = 'users'
@@ -34,7 +42,7 @@ class User(db.Model):
     firstname = db.Column(db.String(80), nullable=False)
     lastname = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(300), unique=True, nullable=False)
+    password = db.Column(db.String(300), nullable=False)
 
     # Sets information for the new user
     def __init__(self, fname, lname, email, password):
@@ -62,11 +70,10 @@ def create_user():
         db.session.add(new_user)
         # Commit the staged changes
         db.session.commit()
+        # Create a JWT for the new user
+        access_token = create_access_token(identity=new_user.id)
         # If all goes well then return a success message
-        return jsonify({
-            'status':'success',
-            'user': new_user.id
-        }), 200
+        return jsonify(access_token=access_token), 200
     
     # Excepts missing key errors
     except KeyError as e:
