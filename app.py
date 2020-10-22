@@ -75,18 +75,30 @@ def create_user():
         # Create an error string based on the missing field
         error = 'missing_attribute_'+error_str.translate({ord("'"): None})
         # return error string with missing field
-        return jsonify({'error': error}), 200
+        return jsonify({
+            'status':'failure',
+            'error': error
+        }), 200
 
     # Excepts non-unique or invalid information errors
     except exc.IntegrityError as e:
         # If non-unique find the key that was non-unique and return
         if isinstance(e.orig, UniqueViolation):
             if 'users_email_key' in str(e.orig):
-                return jsonify({'error':'duplicate_email'}), 200
+                return jsonify({
+                    'status':'failure',
+                    'error':'duplicate_email'
+                }), 200
             else: 
-                return jsonify({'error':'duplicate_other'}), 200
+                return jsonify({
+                    'status':'failure',
+                    'error':'duplicate_other'
+                }), 200
     
-    return jsonify({'error':'unknown_error'}), 200
+    return jsonify({
+        'status':'failure',
+        'error':'unknown_error'
+    }), 200
 
 if len(sys.argv) > 1:
     if sys.argv[1].lower() == 'migrate' or sys.argv[1].lower() == 'm':
