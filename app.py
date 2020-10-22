@@ -107,6 +107,15 @@ def create_user():
         'error':'unknown_error'
     }), 200
 
+
+# Testing a protect route
+@app.route('/protected', methods=['GET'])
+@jwt_required
+def protected():
+    # Access the identity of the current user with get_jwt_identity
+    current_user = get_jwt_identity()
+    return jsonify(logged_in_as=current_user), 200
+
 if len(sys.argv) > 1:
     if sys.argv[1].lower() == 'migrate' or sys.argv[1].lower() == 'm':
         db.create_all()
