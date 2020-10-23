@@ -12,7 +12,7 @@ from flask_cors import CORS
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
-    get_jwt_identity
+    create_refresh_token, get_jwt_identity
 )
 # Load the env file
 load_dotenv()
@@ -21,7 +21,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Setup CORs for app
-CORS(app)
+CORS(app, supports_credentials=True)
 
 # Setup bcrypt for app
 bcrypt = Bcrypt(app)
@@ -54,6 +54,13 @@ class User(db.Model):
     # Creates a list representation of the task object
     def to_list(self):
         return [self.id, self.firstname, self.lastname, self.email]
+    
+    def to_json(self):
+        return jsonify({
+            'firstName':self.firstname,
+            'lastName':self.lastname,
+            'email':self.email
+        })
 
 # Route to create a new user 
 @app.route('/createuser', methods=['POST'])
@@ -72,9 +79,15 @@ def create_user():
         db.session.commit()
         # Create a JWT for the new user
         access_token = create_access_token(identity=new_user.id)
-        # If all goes well then return a success message
-        return jsonify(access_token=access_token), 200
+        refresh_token_cookie = ('refresh_token='+ create_refresh_token(identity=new_user.id))
+        # {Set-Cookie: refresh_token=tokenvalue;}
+        return jsonify({
+            'access_token': create_access_token(identity=new_user.id)
+        }), 200, {'Set-Cookie': f'refresh_token={refresh_token_cookie}; SameSite=Lax; HttpOnly'}
     
+    # Make a new GET route specifically for refresh headers
+    
+
     # Excepts missing key errors
     except KeyError as e:
         # Turn error into a string 
@@ -115,6 +128,20 @@ def protected():
     # Access the identity of the current user with get_jwt_identity
     current_user = get_jwt_identity()
     return jsonify(logged_in_as=current_user), 200
+
+@app.route('/basicuserinfo', methods=['GET'])
+@jwt_required
+def get_basic_user_info():
+    try:
+        # Access the identity of the current user with get_jwt_identity
+        current_user = get_jwt_identity()
+        print(f"Current User is {current_user}")
+        # Query the database for the user info
+        user_object = db.session.query(User).get(current_user)
+        print(user_object.to_json())
+        return user_object.to_json(), 200
+    except:
+        return jsonify(error='error'), 200       
 
 if len(sys.argv) > 1:
     if sys.argv[1].lower() == 'migrate' or sys.argv[1].lower() == 'm':
