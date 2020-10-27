@@ -1,69 +1,28 @@
 # Import necessary libraries
-import os
 import sys
 
-from flask import Flask, request, jsonify
-from dotenv import load_dotenv
+from flask import  request, jsonify
 from flask import json
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import exc
 from psycopg2.errors import UniqueViolation
-from flask_cors import CORS
 import bcrypt
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     create_refresh_token, get_jwt_identity
 )
-# Load the env file
-load_dotenv()
 
-# Create the flask app
-app = Flask(__name__)
+from app import app
+from models import db, User
 
-# Setup CORs for app
-CORS(app, supports_credentials=True)
-
-# Create a database connection
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_URL')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-db = SQLAlchemy(app)
-
-# Setup JWT manager
-app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SEC')
+db.init_app(app)
 jwt = JWTManager(app)
-
-# Models for the DB
-class User(db.Model):
-    __tablename__ = 'users'
-    id = db.Column(db.Integer, primary_key=True)
-    firstname = db.Column(db.String(80), nullable=False)
-    lastname = db.Column(db.String(80), nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password = db.Column(db.String(300), nullable=False)
-
-    # Sets information for the new user
-    def __init__(self, fname, lname, email, password):
-        self.firstname = fname
-        self.lastname = lname
-        self.email = email
-        self.password = password
-
-    # Creates a list representation of the task object
-    def to_list(self):
-        return [self.id, self.firstname, self.lastname, self.email]
-    
-    def to_json(self):
-        return jsonify({
-            'id': self.id,
-            'firstName':self.firstname,
-            'lastName':self.lastname,
-            'email':self.email
-        })
 
 # Route to create a new user 
 @app.route('/createuser', methods=['POST'])
 def create_user():
     # Attempts to add new users to the database
+    print(request.get_json())
     try:
         # Get the info sent in the POST request
         user_info=request.get_json()
@@ -85,7 +44,7 @@ def create_user():
             'access_token': create_access_token(identity=new_user.id)
         }), 200, {'Set-Cookie': f'{refresh_token_cookie}; SameSite=Lax; HttpOnly'}
     
-    # Make a new GET route specifically for refresh headers
+    # TODO: Make a new GET route specifically for refresh headers
     
 
     # Excepts missing key errors
@@ -148,8 +107,6 @@ def login():
     
     return jsonify(test='test'), 200
 
-
-
 @app.route('/basicuserinfo', methods=['GET'])
 @jwt_required
 def get_basic_user_info():
@@ -166,8 +123,10 @@ def get_basic_user_info():
 
 if len(sys.argv) > 1:
     if sys.argv[1].lower() == 'migrate' or sys.argv[1].lower() == 'm':
-        db.create_all()
+        with app.app_context():
+            db.create_all()
     elif sys.argv[1].lower == 'demigrate' or sys.argv[1].lower() == 'd':
-        db.drop_all()
+        with app.app_context():
+            db.drop_all()
 else:
     app.run(debug=True)
