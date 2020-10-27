@@ -29,7 +29,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # Setup JWT manager
-app.config['JWT_SECRET_KEY'] = 'super-secret' # I will change this
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SEC')
 jwt = JWTManager(app)
 
 # Models for the DB
