@@ -9,7 +9,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import exc
 from psycopg2.errors import UniqueViolation
 from flask_cors import CORS
-from flask_bcrypt import Bcrypt
+import bcrypt
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     create_refresh_token, get_jwt_identity
@@ -22,9 +22,6 @@ app = Flask(__name__)
 
 # Setup CORs for app
 CORS(app, supports_credentials=True)
-
-# Setup bcrypt for app
-bcrypt = Bcrypt(app)
 
 # Create a database connection
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DB_URL')
@@ -57,6 +54,7 @@ class User(db.Model):
     
     def to_json(self):
         return jsonify({
+            'id': self.id,
             'firstName':self.firstname,
             'lastName':self.lastname,
             'email':self.email
@@ -70,9 +68,11 @@ def create_user():
         # Get the info sent in the POST request
         user_info=request.get_json()
         # hashed password
-        pass_hash = bcrypt.generate_password_hash(user_info['pass'])
+        password = user_info['pass'].encode('utf-8')
+        pass_hash = bcrypt.hashpw(password, bcrypt.gensalt())
+        pass_hash_decoded = pass_hash.decode('utf8')
         # Create a new User object with the given info
-        new_user = User(user_info['fname'], user_info['lname'], user_info['email'], pass_hash)
+        new_user = User(user_info['fname'], user_info['lname'], user_info['email'], pass_hash_decoded)
         # Stage adding the new user to the database
         db.session.add(new_user)
         # Commit the staged changes
@@ -83,7 +83,7 @@ def create_user():
         # {Set-Cookie: refresh_token=tokenvalue;}
         return jsonify({
             'access_token': create_access_token(identity=new_user.id)
-        }), 200, {'Set-Cookie': f'refresh_token={refresh_token_cookie}; SameSite=Lax; HttpOnly'}
+        }), 200, {'Set-Cookie': f'{refresh_token_cookie}; SameSite=Lax; HttpOnly'}
     
     # Make a new GET route specifically for refresh headers
     
@@ -121,13 +121,34 @@ def create_user():
     }), 200
 
 
-# Testing a protect route
-@app.route('/protected', methods=['GET'])
-@jwt_required
-def protected():
-    # Access the identity of the current user with get_jwt_identity
-    current_user = get_jwt_identity()
-    return jsonify(logged_in_as=current_user), 200
+# Login Route
+@app.route('/login', methods=['POST'])
+def login():
+    # Get the user info
+    user_info = request.get_json()
+    print(user_info['email'])
+    result = db.session.query(User).filter(User.email == user_info['email']).first()
+    if( result == None):
+        print("No user with that email")
+    else:
+        # Encoded the strings with utf-8
+        encoded_pass = user_info['pass'].encode('utf-8')
+        encoded_result_pass = result.password.encode('utf-8')
+        # Check if the supplied password could be hashed to the stored password
+        if bcrypt.checkpw(encoded_pass, encoded_result_pass):
+            access_token = create_access_token(identity=result.id)
+            refresh_token_cookie = ('refresh_token='+ create_refresh_token(identity=result.id))
+            # {Set-Cookie: refresh_token=tokenvalue;}
+            return jsonify({
+                'access_token': create_access_token(identity=result.id)
+            }), 200, {'Set-Cookie': f'{refresh_token_cookie}; SameSite=Lax; HttpOnly'}
+        else: 
+            return jsonify(error='wrong_pass')
+        print(result)
+    
+    return jsonify(test='test'), 200
+
+
 
 @app.route('/basicuserinfo', methods=['GET'])
 @jwt_required
