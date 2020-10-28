@@ -29,6 +29,7 @@ def create_user():
         # hashed password
         password = user_info['pass'].encode('utf-8')
         pass_hash = bcrypt.hashpw(password, bcrypt.gensalt())
+        print(pass_hash)
         pass_hash_decoded = pass_hash.decode('utf8')
         # Create a new User object with the given info
         new_user = User(user_info['fname'], user_info['lname'], user_info['email'], pass_hash_decoded)
@@ -80,29 +81,20 @@ def create_user():
 # Login Route
 @app.route('/login', methods=['POST'])
 def login():
-    # Get the user info
+    # Get info from POST and lookup in DB
     user_info = request.get_json()
-    print(user_info['email'])
-    result = db.session.query(User).filter(User.email == user_info['email']).first()
-    if( result == None):
-        print("No user with that email")
-    else:
-        # Encoded the strings with utf-8
-        encoded_pass = user_info['pass'].encode('utf-8')
+    result = db.session.query(User).filter_by(email = user_info['email']).first()
+    # If the user does not exist
+    if result == None:
+        return jsonify(error='no_existing_user')
+    # If the user does exist
+    else: 
+        encoded_user_pass = user_info['pass'].encode('utf-8')
         encoded_result_pass = result.password.encode('utf-8')
-        # Check if the supplied password could be hashed to the stored password
-        if bcrypt.checkpw(encoded_pass, encoded_result_pass):
-            access_token = create_access_token(identity=result.id)
-            refresh_token_cookie = ('refresh_token='+ create_refresh_token(identity=result.id))
-            # {Set-Cookie: refresh_token=tokenvalue;}
-            return jsonify({
-                'access_token': create_access_token(identity=result.id)
-            }), 200, {'Set-Cookie': f'{refresh_token_cookie}; SameSite=Lax; HttpOnly'}
+        if bcrypt.checkpw(encoded_user_pass, encoded_result_pass):
+            return jsonify(status='success')
         else: 
-            return jsonify(error='wrong_pass')
-        print(result)
-    
-    return jsonify(test='test'), 200
+            return jsonify(status='wrong_pass')
 
 @app.route('/basicuserinfo', methods=['GET'])
 @jwt_required

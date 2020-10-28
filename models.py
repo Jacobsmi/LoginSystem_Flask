@@ -1,4 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
+from flask import jsonify
 
 db = SQLAlchemy()
 
@@ -20,11 +21,3 @@ class User(db.Model):
     # Creates a list representation of the task object
     def to_list(self):
         return [self.id, self.firstname, self.lastname, self.email]
-    
-    def to_json(self):
-        return jsonify({
-            'id': self.id,
-            'firstName':self.firstname,
-            'lastName':self.lastname,
-            'email':self.email
-        })
