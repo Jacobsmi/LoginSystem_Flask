@@ -37,7 +37,6 @@ def create_user():
         # Commit the staged changes
         db.session.commit()
         # Create a JWT for the new user
-        access_token = create_access_token(identity=new_user.id)
         refresh_token_cookie = ('refresh_token='+ create_refresh_token(identity=new_user.id))
         # {Set-Cookie: refresh_token=tokenvalue;}
         return jsonify({
@@ -91,7 +90,9 @@ def login():
         encoded_user_pass = user_info['pass'].encode('utf-8')
         encoded_result_pass = result.password.encode('utf-8')
         if bcrypt.checkpw(encoded_user_pass, encoded_result_pass):
-            return jsonify(status='success')
+            # Create access and refresh tokens
+            refresh_token_cookie = ('refresh_token='+ create_refresh_token(identity=result.id)) 
+            return jsonify(access_token = create_access_token(identity=result.id)), 200,{'Set-Cookie': f'{refresh_token_cookie}; SameSite=Lax; HttpOnly'}
         else: 
             return jsonify(status='wrong_pass')
 
