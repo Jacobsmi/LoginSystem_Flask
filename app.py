@@ -99,16 +99,16 @@ def login():
 @app.route('/basicuserinfo', methods=['GET'])
 @jwt_required
 def get_basic_user_info():
-    try:
-        # Access the identity of the current user with get_jwt_identity
-        current_user = get_jwt_identity()
-        print(f"Current User is {current_user}")
-        # Query the database for the user info
-        user_object = db.session.query(User).get(current_user)
-        print(user_object.to_json())
-        return user_object.to_json(), 200
-    except:
-        return jsonify(error='error'), 200       
+    # Access the identity of the current user with get_jwt_identity
+    current_user = get_jwt_identity()
+    print(f"Current User is {current_user}")
+    # Query the database for the user info
+    user_object = db.session.query(User).get(current_user)
+    user_list = user_object.to_list()
+    return ({
+        'fname': user_list[1],
+        'lname': user_list[2],
+    }), 200     
 
 if len(sys.argv) > 1:
     if sys.argv[1].lower() == 'migrate' or sys.argv[1].lower() == 'm':
