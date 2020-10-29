@@ -29,7 +29,6 @@ def create_user():
         # hashed password
         password = user_info['pass'].encode('utf-8')
         pass_hash = bcrypt.hashpw(password, bcrypt.gensalt())
-        print(pass_hash)
         pass_hash_decoded = pass_hash.decode('utf8')
         # Create a new User object with the given info
         new_user = User(user_info['fname'], user_info['lname'], user_info['email'], pass_hash_decoded)
